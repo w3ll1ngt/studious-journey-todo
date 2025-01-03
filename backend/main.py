@@ -1,13 +1,21 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
 from database import SessionLocal, engine, Base
 from models import TodoItem as TodoItemModel
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.mount("/dist", StaticFiles(directory="dist"), name="dist")
+
+templates = Jinja2Templates(directory="dist")
 
 class TodoCreate(BaseModel):
     title: str
@@ -31,8 +39,8 @@ def get_db():
         db.close()
 
 @app.get("/")
-def read_root():
-    return {"message": "Hello World"}
+def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/items", response_model=List[TodoItem])
 def get_items(db: Session = Depends(get_db)):
@@ -78,4 +86,3 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
     db.delete(db_item)
     db.commit()
     return {"message": "Item deleted"}
-
